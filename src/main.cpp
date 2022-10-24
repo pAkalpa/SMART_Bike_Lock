@@ -31,20 +31,20 @@ Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
 // Global Variables
 bool locked = true;
 int brightness = 0;
-int fadeAmount = 5;
+uint8_t fadeAmount = 5;
 bool tilted = true;
 int pos = 0;
-int SERIAL_READ = 0;
+uint8_t SERIAL_READ = 0;
 unsigned long lastTileDuration;
-uint8_t id;
+int id;
 
 // ------- Serial Commands --------
 // RECEIVE DATA
-int ARM_SYS = 401;
-int UN_ARM_SYS = 200;
-int ENROLL = 201;
-int DELETE_ALL = 404;
-int DELETE_SINGLE = 405;
+uint8_t ARM_SYS = 5;
+uint8_t UN_ARM_SYS = 10;
+uint8_t ENROLL = 6;
+uint8_t DELETE_ALL = 7;
+uint8_t DELETE_SINGLE = 8;
 
 // SEND DATA
 
