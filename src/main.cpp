@@ -35,14 +35,15 @@ uint8_t SERIAL_READ = 0;
 uint8_t tiltCount = 0;
 unsigned long lastTiltDuration;
 int id;
+int detectId;
 
 // ------- Serial Commands --------
 // RECEIVE DATA
-uint8_t ARM_SYS = 5;
-uint8_t UN_ARM_SYS = 10;
-uint8_t ENROLL = 6;
-uint8_t DELETE_ALL = 7;
-uint8_t DELETE_SINGLE = 8;
+const uint8_t ARM_SYS = 200;
+const uint8_t DISARM_SYS = 201;
+const uint8_t ENROLL = 205;
+const uint8_t DELETE_ALL = 206;
+const uint8_t DELETE_SINGLE = 207;
 
 // SEND DATA
 
@@ -299,6 +300,10 @@ uint8_t deleteFingerprint(uint8_t id)
 void deleteAllFingerprint()
 {
   finger.emptyDatabase();
+  if (Serial.available())
+  {
+    Serial.write(100);
+  }
 }
 
 /*
@@ -310,21 +315,13 @@ void lockControl(bool state)
 {
   if (state)
   {
-    for (pos = 180; pos >= 0; pos -= 1)
-    { // goes from 180 degrees to 0 degrees
-      fWheelServo.write(pos);
-      rWheelServo.write(pos);
-      delay(15);
-    }
+    fWheelServo.write(0);
+    rWheelServo.write(0);
   }
   else
   {
-    for (pos = 0; pos <= 180; pos += 1)
-    { // goes from 0 degrees to 180 degrees
-      fWheelServo.write(pos);
-      rWheelServo.write(pos);
-      delay(15);
-    }
+    fWheelServo.write(180);
+    rWheelServo.write(180);
   }
 }
 
@@ -335,22 +332,55 @@ void serialRead()
 {
   if (Serial.available() > 0)
   {
-    SERIAL_READ = Serial.read();
+    SERIAL_READ = Serial.parseInt();
+    Serial.println(SERIAL_READ);
+    switch (SERIAL_READ)
+    {
+    case ARM_SYS:
+      Serial.println("ARMING SYSTEM");
+      detectId = -1;
+      locked = true;
+      break;
+    case DISARM_SYS:
+      Serial.println("DISARMING SYSTEM");
+      detectId = 0;
+      locked = false;
+      break;
+    case ENROLL:
+      newFingerprintEnroll();
+      break;
+    case DELETE_SINGLE:
+      while (Serial.available() == 0)
+      {
+      };
+      uint8_t id = Serial.parseInt();
+      deleteFingerprint(id);
+      break;
+    case DELETE_ALL:
+      deleteAllFingerprint();
+      break;
+    default:
+      break;
+    }
   }
 }
 
 void loop()
 {
   digitalWrite(buzzer, HIGH);
-  int val = detectFingerprintID();
+  detectId = detectFingerprintID();
+  lockControl(true);
 
+  serialRead();
   lastTiltDuration = millis();
-  if (val != -1)
+  if (detectId != -1)
   {
     locked = false;
     digitalWrite(lockedLED, LOW);
     while (!locked)
     {
+      serialRead();
+      lockControl(false);
       digitalWrite(unlockedLED, HIGH);
       uint8_t tempCount = tiltCount;
 
@@ -362,7 +392,15 @@ void loop()
 
       if (tiltCount == tempCount)
       {
-        if (millis() - lastTiltDuration > 15000)
+        if (Serial.available())
+        {
+          if (millis() - lastTiltDuration >= 15000)
+          {
+            Serial.println(500);
+          }
+        }
+
+        if (millis() - lastTiltDuration >= 20000)
         {
           digitalWrite(buzzer, LOW);
           delay(2000);
