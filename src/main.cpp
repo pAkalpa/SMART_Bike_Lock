@@ -18,7 +18,7 @@
 #define unlockedLED 8
 #define buzzer 10
 #define lockButton 12
-#define tiltInput A5
+#define tiltInput 7
 #define fWheelLock 5
 #define rWheelLock 6
 
@@ -30,12 +30,10 @@ Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
 
 // Global Variables
 bool locked = true;
-int brightness = 0;
-uint8_t fadeAmount = 5;
-bool tilted = true;
 int pos = 0;
 uint8_t SERIAL_READ = 0;
-unsigned long lastTileDuration;
+uint8_t tiltCount = 0;
+unsigned long lastTiltDuration;
 int id;
 
 // ------- Serial Commands --------
@@ -345,6 +343,8 @@ void loop()
 {
   digitalWrite(buzzer, HIGH);
   int val = detectFingerprintID();
+
+  lastTiltDuration = millis();
   if (val != -1)
   {
     locked = false;
@@ -352,31 +352,30 @@ void loop()
     while (!locked)
     {
       digitalWrite(unlockedLED, HIGH);
-      Serial.println("Unlocked");
-      delay(500);
-      // if (digitalRead(tiltInput) == HIGH) {
-      //   tilted = false;
-      // } else {
-      //   tilted = true;
-      // }
-      // Serial.println(digitalRead(tiltInput));
-      // if (analogRead(tiltInput) <= 500) {
-      //   lastTileDuration = millis();
-      // }
-      // Serial.println(millis() - lastTileDuration);
-      // if (millis() - lastTileDuration >= 10000) {
-      while (analogRead(tiltInput) >= 1010)
+      uint8_t tempCount = tiltCount;
+
+      if (digitalRead(tiltInput) == LOW)
       {
-        Serial.println("not tilted");
-        delay(1000);
-        digitalWrite(buzzer, LOW);
-        delay(5000);
-        digitalWrite(buzzer, HIGH);
-        locked = true;
-        break;
+        tiltCount++;
+        lastTiltDuration = millis();
       }
-      //   break;
-      // }
+
+      if (tiltCount == tempCount)
+      {
+        if (millis() - lastTiltDuration > 15000)
+        {
+          digitalWrite(buzzer, LOW);
+          delay(2000);
+          digitalWrite(buzzer, HIGH);
+          locked = true;
+          break;
+        }
+      }
+      else
+      {
+        tiltCount = 0;
+      }
+
       if (digitalRead(lockButton) == HIGH)
       {
         locked = true;
@@ -386,15 +385,13 @@ void loop()
   }
   else
   {
-    while (analogRead(tiltInput) <= 1000)
+    while (digitalRead(tiltInput) == LOW)
     {
       digitalWrite(buzzer, LOW);
       delay(5000);
     }
-    Serial.println("Locked!");
     digitalWrite(lockedLED, HIGH);
     digitalWrite(unlockedLED, LOW);
     locked = true;
   }
-  delay(50);
 }
