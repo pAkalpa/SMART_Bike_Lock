@@ -14,13 +14,13 @@
 #include <Servo.h>
 
 // Define IO Pins
-#define lockedLED 9
-#define unlockedLED 8
-#define buzzer 10
-#define lockButton 12
-#define tiltInput 7
-#define fWheelLock 5
-#define rWheelLock 6
+#define lockedLEDPin 9
+#define unlockedLEDPin 8
+#define buzzerPin 10
+#define lockButtonPin 12
+#define tiltInputPin 7
+#define fWheelLockPin 5
+#define rWheelLockPin 6
 
 // Define Objects
 SoftwareSerial mySerial(2, 3);
@@ -34,6 +34,7 @@ int pos = 0;
 uint8_t SERIAL_READ = 0;
 uint8_t tiltCount = 0;
 unsigned long lastTiltDuration;
+unsigned long timeNow;
 int id;
 int detectId;
 
@@ -53,12 +54,12 @@ void setup()
 {
   finger.begin(57600);
   Serial.begin(9600);
-  pinMode(lockedLED, OUTPUT);
-  pinMode(unlockedLED, OUTPUT);
-  pinMode(buzzer, OUTPUT);
-  pinMode(lockButton, INPUT);
-  fWheelServo.attach(fWheelLock);
-  rWheelServo.attach(rWheelLock);
+  pinMode(lockedLEDPin, OUTPUT);
+  pinMode(unlockedLEDPin, OUTPUT);
+  pinMode(buzzerPin, OUTPUT);
+  pinMode(lockButtonPin, INPUT);
+  fWheelServo.attach(fWheelLockPin);
+  rWheelServo.attach(rWheelLockPin);
 }
 
 /*
@@ -365,9 +366,21 @@ void serialRead()
   }
 }
 
+void buzzerTone(int duration)
+{
+  timeNow = millis();
+  while (millis() - timeNow < duration)
+  {
+    tone(buzzerPin, 1000, 100); // freq 1000 Hz,delay 100 ms
+    delay(1000);
+    tone(buzzerPin, 1000, 1000); // freq 1000 Hz,delay 1 sec
+    delay(100);
+  }
+}
+
 void loop()
 {
-  digitalWrite(buzzer, HIGH);
+  digitalWrite(buzzerPin, HIGH);
   detectId = detectFingerprintID();
   lockControl(true);
 
@@ -376,15 +389,15 @@ void loop()
   if (detectId != -1)
   {
     locked = false;
-    digitalWrite(lockedLED, LOW);
+    digitalWrite(lockedLEDPin, LOW);
     while (!locked)
     {
       serialRead();
       lockControl(false);
-      digitalWrite(unlockedLED, HIGH);
+      digitalWrite(unlockedLEDPin, HIGH);
       uint8_t tempCount = tiltCount;
 
-      if (digitalRead(tiltInput) == LOW)
+      if (digitalRead(tiltInputPin) == LOW)
       {
         tiltCount++;
         lastTiltDuration = millis();
@@ -392,19 +405,17 @@ void loop()
 
       if (tiltCount == tempCount)
       {
-        if (Serial.available())
+        if (millis() - lastTiltDuration >= 15000)
         {
-          if (millis() - lastTiltDuration >= 15000)
-          {
-            Serial.println(500);
-          }
+          Serial.println(500);
         }
 
         if (millis() - lastTiltDuration >= 20000)
         {
-          digitalWrite(buzzer, LOW);
-          delay(2000);
-          digitalWrite(buzzer, HIGH);
+          // digitalWrite(buzzerPin, LOW);
+          // delay(2000);
+          buzzerTone(2000);
+          digitalWrite(buzzerPin, HIGH);
           locked = true;
           break;
         }
@@ -414,7 +425,7 @@ void loop()
         tiltCount = 0;
       }
 
-      if (digitalRead(lockButton) == HIGH)
+      if (digitalRead(lockButtonPin) == HIGH)
       {
         locked = true;
         break;
@@ -423,13 +434,12 @@ void loop()
   }
   else
   {
-    while (digitalRead(tiltInput) == LOW)
+    if (digitalRead(tiltInputPin) == LOW)
     {
-      digitalWrite(buzzer, LOW);
-      delay(5000);
+      buzzerTone(5000);
     }
-    digitalWrite(lockedLED, HIGH);
-    digitalWrite(unlockedLED, LOW);
+    digitalWrite(lockedLEDPin, HIGH);
+    digitalWrite(unlockedLEDPin, LOW);
     locked = true;
   }
 }
