@@ -37,6 +37,7 @@ unsigned long lastTiltDuration;
 unsigned long timeNow;
 int id;
 int detectId;
+bool isMsgSent = false;
 
 // ------- Serial Commands --------
 // RECEIVE DATA
@@ -366,7 +367,7 @@ void serialRead()
   }
 }
 
-void buzzerTone(int duration)
+void buzzerTone1(unsigned int duration)
 {
   timeNow = millis();
   while (millis() - timeNow < duration)
@@ -375,6 +376,18 @@ void buzzerTone(int duration)
     delay(1000);
     tone(buzzerPin, 1000, 1000); // freq 1000 Hz,delay 1 sec
     delay(100);
+  }
+}
+
+void buzzerTone2(unsigned int duration)
+{
+  timeNow = millis();
+  while (millis() - timeNow < duration)
+  {
+    digitalWrite(buzzerPin, LOW);
+    delay(60);
+    digitalWrite(buzzerPin, HIGH);
+    delay(500);
   }
 }
 
@@ -407,14 +420,16 @@ void loop()
       {
         if (millis() - lastTiltDuration >= 15000)
         {
-          Serial.println(500);
+          if (!isMsgSent)
+          {
+            Serial.println(500);
+            isMsgSent = true;
+          }
         }
 
         if (millis() - lastTiltDuration >= 20000)
         {
-          // digitalWrite(buzzerPin, LOW);
-          // delay(2000);
-          buzzerTone(2000);
+          buzzerTone2(2000);
           digitalWrite(buzzerPin, HIGH);
           locked = true;
           break;
@@ -436,7 +451,8 @@ void loop()
   {
     if (digitalRead(tiltInputPin) == LOW)
     {
-      buzzerTone(5000);
+      buzzerTone1(5000);
+      digitalWrite(buzzerPin, HIGH);
     }
     digitalWrite(lockedLEDPin, HIGH);
     digitalWrite(unlockedLEDPin, LOW);
